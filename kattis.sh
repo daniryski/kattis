@@ -1,13 +1,29 @@
 #!/bin/bash
 
-if [ ! $# -eq 1 ]; then
-  echo "usage: $0 FILE"
+if [ $# -eq 0 ]; then
+  echo "usage: $0 [FILE...]"
   exit 1
 fi
 
-file="$1"
-problem="${file%.*}"
-extension="${file##*.}"
+files=()
+for file in "$@"; do
+  if [ ! -f $file ]; then
+    echo "Couldn't find file $file."
+    exit 1
+  fi
+
+  files+=("$file")
+done
+
+problem=${files[0]%.*}
+
+extension="${files[0]##*.}"
+for file in "${files[@]}"; do
+  if [ "${file##*.}" != "$extension" ]; then
+    extension="unknown"
+    break
+  fi
+done
 
 case $extension in
   c)
@@ -20,7 +36,7 @@ case $extension in
     language="Python 3"
     ;;
   *)
-    echo "Couldn't deduce the language of file $file."
+    echo "Couldn't deduce the language of the files $files."
     exit 1
 esac
 
@@ -43,7 +59,7 @@ kattis_login_url=`grep --perl-regexp --only-matching 'loginurl:\s\K.*' $kattisrc
 kattis_submit_url=`grep --perl-regexp --only-matching 'submissionurl:\s\K.*' $kattisrc`
 kattis_submission_url=`grep --perl-regexp --only-matching 'submissionsurl:\s\K.*' $kattisrc`
 
-login_output=$(curl\
+login_output=$(curl --silent\
   --cookie-jar .cookies\
   --user-agent "kattis-cli-submit"\
   --form script="true"\
@@ -64,7 +80,7 @@ submit_output=$(curl\
   --form submit_ctr="2"\
   --form language="$language"\
   --form problem="$problem"\
-  --form sub_file[]=@$file\
+  ${files[@]/#/--form sub_file[]=@}\
   "$kattis_submit_url"
 )
 
